@@ -82,13 +82,13 @@ async function run() {
     };
 
     // classes api
-    app.post("/classes", async(req, res)=>{
+    app.post("/classes", async (req, res) => {
       const data = req.body;
       const result = await classCollection.insertOne(data);
       res.send(result);
-    })
+    });
     app.get("/popularClass", async (req, res) => {
-      const query = {};
+      const query = { status: "Approved" };
       const options = {
         sort: { students: -1 },
       };
@@ -98,8 +98,18 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
     app.get("/classes", async (req, res) => {
-      const result = await classCollection.find().toArray();
+      const result = await classCollection
+        .find({ status: "Approved" })
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/myClass", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await classCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -176,10 +186,10 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/manageClasses',  async(req, res)=>{
+    app.get("/manageClasses", async (req, res) => {
       const result = await classCollection.find().toArray();
       res.send(result);
-    })
+    });
 
     // instructor
     app.patch("/users/instructor/:id", async (req, res) => {
