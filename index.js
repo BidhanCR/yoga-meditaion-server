@@ -81,6 +81,12 @@ async function run() {
       next();
     };
 
+    // classes api
+    app.post("/classes", async(req, res)=>{
+      const data = req.body;
+      const result = await classCollection.insertOne(data);
+      res.send(result);
+    })
     app.get("/popularClass", async (req, res) => {
       const query = {};
       const options = {
@@ -140,10 +146,40 @@ async function run() {
           role: "admin",
         },
       };
-
       const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+    app.patch("/classes/approved/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "Approved",
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    app.patch("/classes/denied/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "Denied",
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.get('/manageClasses',  async(req, res)=>{
+      const result = await classCollection.find().toArray();
+      res.send(result);
+    })
 
     // instructor
     app.patch("/users/instructor/:id", async (req, res) => {
