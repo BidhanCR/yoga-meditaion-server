@@ -120,7 +120,7 @@ async function run() {
       res.send(result);
     });
 
-    // users
+    // users api
 
     app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -154,6 +154,7 @@ async function run() {
       const result = { admin: user?.role === "admin" };
       res.send(result);
     });
+
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -179,6 +180,7 @@ async function run() {
       const result = await classCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
     app.patch("/classes/denied/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -192,6 +194,7 @@ async function run() {
       const result = await classCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
     app.patch("/classes/feedback/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -211,6 +214,7 @@ async function run() {
       res.send(result);
     });
 
+    //  instructor class api
     app.patch("/users/instructor/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -257,7 +261,7 @@ async function run() {
       }
     });
 
-    // selected
+    // selected class
 
     app.post("/selectedClasses", async (req, res) => {
       const selectedClass = req.body;
@@ -271,17 +275,30 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          selected_status: body.selected_status
+          selected_status: body.selected_status,
+          date: body.date
         },
       };
       try {
-        const result = await selectedClassCollection.updateOne(filter, updateDoc);
+        const result = await selectedClassCollection.updateOne(
+          filter,
+          updateDoc
+        );
         res.send(result);
       } catch (error) {
         res.status(500).send({ message: "Failed to update class data." });
       }
     });
 
+    app.get("/selectedEnrolledClasses", async (req, res) => {
+      const query = {
+        "user.student_email": req.query.email,
+        selected_status: { $in: ["Selected", "Enrolled"] },
+      };
+
+      const result = await selectedClassCollection.find(query).toArray();
+      res.send(result);
+    });
     app.get("/selectedClasses", async (req, res) => {
       const query = {
         "user.student_email": req.query.email,
@@ -296,6 +313,17 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await selectedClassCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // enrolled class
+    app.get("/myEnrolledClasses", async (req, res) => {
+      const query = {
+        "user.student_email": req.query.email,
+        selected_status: "Enrolled",
+      };
+
+      const result = await selectedClassCollection.find(query).toArray();
       res.send(result);
     });
 
