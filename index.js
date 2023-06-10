@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
@@ -47,6 +48,12 @@ async function run() {
     await client.connect();
     const usersCollection = client.db("yogaCenterDb").collection("users");
     const classCollection = client.db("yogaCenterDb").collection("classes");
+    const enrolledCollection = client
+      .db("yogaCenterDb")
+      .collection("enrolledClasses");
+    const selectedClassCollection = client
+      .db("yogaCenterDb")
+      .collection("selectedClass");
 
     // JWT token
     app.post("/jwt", (req, res) => {
@@ -204,7 +211,6 @@ async function run() {
       res.send(result);
     });
 
-    // instructor
     app.patch("/users/instructor/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -229,6 +235,90 @@ async function run() {
       const user = await usersCollection.findOne(query);
       const result = { instructor: user?.role === "instructor" };
       res.send(result);
+    });
+
+    app.patch("/updateClass/:id", async (req, res) => {
+      const id = req.params.id;
+      const body = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          name: body.name,
+          image: body.image,
+          availableSeats: body.availableSeats,
+          price: body.price,
+        },
+      };
+      try {
+        const result = await classCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to update class data." });
+      }
+    });
+
+    // selected
+
+    app.post("/selectedClasses", async (req, res) => {
+      const selectedClass = req.body;
+      const result = await selectedClassCollection.insertOne(selectedClass);
+      res.send(result);
+    });
+    app.patch("/selectedClasses/:id", async (req, res) => {
+      const id = req.params.id;
+      const body = req.body;
+      console.log(body);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          selected_status: body.selected_status
+        },
+      };
+      try {
+        const result = await selectedClassCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to update class data." });
+      }
+    });
+
+    app.get("/selectedClasses", async (req, res) => {
+      const query = {
+        "user.student_email": req.query.email,
+        selected_status: "Selected",
+      };
+
+      const result = await selectedClassCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/selectedClasses/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectedClassCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // payment
+    app.post("/payment", async (req, res) => {
+      const paymentInfo = req.body;
+      const result = await enrolledCollection.insertOne(paymentInfo);
+      res.send(result);
+    });
+
+    // create payment intent
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseFloat(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     // Send a ping to confirm a successful connection
