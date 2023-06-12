@@ -238,9 +238,10 @@ async function run() {
     });
 
     app.get("/manageClasses", async (req, res) => {
-      const result = await classCollection.find().toArray();
+      const result = await classCollection.find().sort({ date: -1 }).toArray();
       res.send(result);
     });
+    
 
     //  instructor class api
     app.patch("/users/instructor/:id", async (req, res) => {
@@ -370,13 +371,27 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/instructors", async (req, res) => {
+      const query = {
+        role: "instructor",
+      };
+      const projection = {
+        name: 1,
+        image: 1,
+        email: 1,
+        _id: 0
+      };
+      const result = await usersCollection.find(query).project(projection).toArray();
+      res.send(result);
+    });
+
     // payment
     app.post("/payment", async (req, res) => {
       const paymentInfo = req.body;
       const result = await enrolledCollection.insertOne(paymentInfo);
       res.send(result);
     });
-
+     
     // create payment intent
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
