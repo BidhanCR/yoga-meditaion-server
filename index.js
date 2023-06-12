@@ -45,7 +45,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const usersCollection = client.db("yogaCenterDb").collection("users");
     const classCollection = client.db("yogaCenterDb").collection("classes");
     const enrolledCollection = client
@@ -76,17 +76,6 @@ async function run() {
       }
       next();
     };
-    const verifyInstructor = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== "instructor") {
-        return res
-          .status(403)
-          .send({ error: true, message: "forbidden message" });
-      }
-      next();
-    };
 
     // classes api
     app.post("/classes", async (req, res) => {
@@ -103,6 +92,31 @@ async function run() {
         .find(query, options)
         .limit(6)
         .toArray();
+      res.send(result);
+    });
+    app.get("/PopularInstructors", async (req, res) => {
+      const pipeline = [
+        {
+          $match: {
+            status: "Approved",
+          },
+        },
+        {
+          $group: {
+            _id: "$instructor",
+            totalStudents: { $sum: "$students" },
+            instructorImage: { $first: "$instructor_image" },
+            classNames: { $addToSet: "$name" },
+          },
+        },
+        {
+          $sort: {
+            totalStudents: -1,
+          },
+        },
+      ];
+
+      const result = await classCollection.aggregate(pipeline).toArray();
       res.send(result);
     });
 
@@ -167,6 +181,7 @@ async function run() {
       const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
     app.patch("/classes/approved/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -188,6 +203,19 @@ async function run() {
       const updateDoc = {
         $set: {
           status: "Denied",
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    app.patch("/updateClasses/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $inc: {
+          students: 1,
+          availableSeats: -1,
         },
       };
 
@@ -228,6 +256,7 @@ async function run() {
       const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
     app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -262,12 +291,25 @@ async function run() {
     });
 
     // selected class
+    app.get("/users/student/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ student: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { student: user?.role === "student" };
+      res.send(result);
+    });
 
     app.post("/selectedClasses", async (req, res) => {
       const selectedClass = req.body;
       const result = await selectedClassCollection.insertOne(selectedClass);
       res.send(result);
     });
+
     app.patch("/selectedClasses/:id", async (req, res) => {
       const id = req.params.id;
       const body = req.body;
@@ -276,7 +318,7 @@ async function run() {
       const updateDoc = {
         $set: {
           selected_status: body.selected_status,
-          date: body.date
+          date: body.date,
         },
       };
       try {
@@ -299,6 +341,7 @@ async function run() {
       const result = await selectedClassCollection.find(query).toArray();
       res.send(result);
     });
+
     app.get("/selectedClasses", async (req, res) => {
       const query = {
         "user.student_email": req.query.email,
