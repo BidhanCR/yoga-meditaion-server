@@ -321,7 +321,7 @@ async function run() {
       const updateDoc = {
         $set: {
           selected_status: body.selected_status,
-          date: body.date,
+          enrolled_date: body.enrolled_date,
         },
       };
       try {
@@ -369,7 +369,7 @@ async function run() {
         selected_status: "Enrolled",
       };
 
-      const result = await selectedClassCollection.find(query).sort({ date: -1 }).toArray();
+      const result = await selectedClassCollection.find(query).sort({ enrolled_date: -1 }).toArray();
       res.send(result);
     });
     // user profile
