@@ -17,7 +17,7 @@ const verifyJWT = (req, res, next) => {
       .status(401)
       .send({ error: true, message: "unauthorized access" });
   }
-  // bearer token
+  
   const token = authorization.split(" ")[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
@@ -54,6 +54,9 @@ async function run() {
     const selectedClassCollection = client
       .db("yogaCenterDb")
       .collection("selectedClass");
+    const guidedMeditationsClassCollection = client
+      .db("yogaCenterDb")
+      .collection("guidance");
 
     // JWT token
     app.post("/jwt", (req, res) => {
@@ -237,11 +240,10 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/manageClasses", async (req, res) => {
+    app.get("/manageClasses", verifyJWT, async (req, res) => {
       const result = await classCollection.find().sort({ date: -1 }).toArray();
       res.send(result);
     });
-    
 
     //  instructor class api
     app.patch("/users/instructor/:id", async (req, res) => {
@@ -333,7 +335,7 @@ async function run() {
       }
     });
 
-    app.get("/selectedEnrolledClasses", async (req, res) => {
+    app.get("/selectedEnrolledClasses", verifyJWT, async (req, res) => {
       const query = {
         "user.student_email": req.query.email,
         selected_status: { $in: ["Selected", "Enrolled"] },
@@ -343,7 +345,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/selectedClasses", async (req, res) => {
+    app.get("/selectedClasses", verifyJWT, async (req, res) => {
       const query = {
         "user.student_email": req.query.email,
         selected_status: "Selected",
@@ -361,16 +363,24 @@ async function run() {
     });
 
     // enrolled class
-    app.get("/myEnrolledClasses", async (req, res) => {
+    app.get("/myEnrolledClasses", verifyJWT, async (req, res) => {
       const query = {
         "user.student_email": req.query.email,
         selected_status: "Enrolled",
       };
 
-      const result = await selectedClassCollection.find(query).toArray();
+      const result = await selectedClassCollection.find(query).sort({ date: -1 }).toArray();
       res.send(result);
     });
-
+    // user profile
+    app.get("/userInfo", verifyJWT, async (req, res) => {
+      const query = {
+        "email": req.query.email,
+      };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+    
     app.get("/instructors", async (req, res) => {
       const query = {
         role: "instructor",
@@ -379,9 +389,18 @@ async function run() {
         name: 1,
         image: 1,
         email: 1,
-        _id: 0
+        _id: 0,
       };
-      const result = await usersCollection.find(query).project(projection).toArray();
+      const result = await usersCollection
+        .find(query)
+        .project(projection)
+        .toArray();
+      res.send(result);
+    });
+
+    // guidedMeditations
+    app.get("/guidedMeditations", async (req, res) => {
+      const result = await guidedMeditationsClassCollection.find().toArray();
       res.send(result);
     });
 
@@ -391,7 +410,7 @@ async function run() {
       const result = await enrolledCollection.insertOne(paymentInfo);
       res.send(result);
     });
-     
+
     // create payment intent
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
