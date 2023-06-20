@@ -62,7 +62,7 @@ async function run() {
     app.post("/jwt", (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "3h",
       });
 
       res.send({ token });
@@ -245,7 +245,7 @@ async function run() {
       res.send(result);
     });
 
-    //  instructor class api
+    //  instructors class api
     app.patch("/users/instructor/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
